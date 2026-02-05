@@ -14,7 +14,7 @@ const tableBody = document.querySelector('#expense-table tbody');
 const totalExpenseEl = document.getElementById('total-expense');
 const suggestionEl = document.getElementById('suggestion');
 
-// Expense Data
+// Expense Data (from localStorage or empty array)
 let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
 
 // Show tracker page
@@ -32,20 +32,23 @@ addBtn.addEventListener('click', () => {
     const month = expenseMonth.value;
 
     if (name === '' || isNaN(amount) || amount <= 0) {
-        alert('Please enter valid name and amount!');
+        alert('Please enter a valid name and amount!');
         return;
     }
 
+    // Add new expense
     const expense = { name, amount, category, month };
     expenses.push(expense);
     localStorage.setItem('expenses', JSON.stringify(expenses));
 
+    // Clear input fields
     expenseName.value = '';
     expenseAmount.value = '';
+
     renderExpenses();
 });
 
-// Clear All
+// Clear All Expenses
 clearBtn.addEventListener('click', () => {
     if (confirm('Are you sure you want to clear all expenses?')) {
         expenses = [];
@@ -61,18 +64,21 @@ function deleteExpense(index) {
     renderExpenses();
 }
 
-// Render Expenses
+// Render Expenses Table & Totals
 function renderExpenses() {
     tableBody.innerHTML = '';
-    let total = 0;
+    const monthTotals = {}; // Total per month
 
+    // Render table rows
     expenses.forEach((exp, index) => {
-        total += exp.amount;
+        // Track totals by month
+        if (!monthTotals[exp.month]) monthTotals[exp.month] = 0;
+        monthTotals[exp.month] += exp.amount;
+
         const tr = document.createElement('tr');
 
-        if (exp.amount > 10000) { // highlight big expenses
-            tr.classList.add('highlight');
-        }
+        // Highlight large expenses (>10000)
+        if (exp.amount > 10000) tr.classList.add('highlight');
 
         tr.innerHTML = `
             <td>${exp.name}</td>
@@ -84,14 +90,23 @@ function renderExpenses() {
         tableBody.appendChild(tr);
     });
 
-    totalExpenseEl.textContent = `Total Expense: ₹${total.toFixed(2)}`;
+    // Show totals for all months
+    let totalText = '';
+    for (const month in monthTotals) {
+        totalText += `${month}: ₹${monthTotals[month].toFixed(2)}  `;
+    }
+    totalExpenseEl.textContent = totalText || 'Total Expense: ₹0';
 
-    // Suggestion
-    if (total > 45000) {
-        suggestionEl.textContent = 'Warning: Monthly expenses are high!';
+    // Suggestion for the currently selected month
+    const selectedMonth = expenseMonth.value;
+    const monthTotal = monthTotals[selectedMonth] || 0;
+    if (monthTotal > 45000) {
+        suggestionEl.textContent = `Warning: Expenses for ${selectedMonth} are high!`;
         suggestionEl.style.color = 'red';
-    } else {
-        suggestionEl.textContent = 'Good! You are within budget.';
+    } else if (monthTotal > 0) {
+        suggestionEl.textContent = `Good! You are within budget for ${selectedMonth}.`;
         suggestionEl.style.color = 'green';
+    } else {
+        suggestionEl.textContent = '';
     }
 }
